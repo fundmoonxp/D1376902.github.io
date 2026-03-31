@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔮 奇幻命運觀測站</title>
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #a29bfe;
+            --bg-color: #0f0c29;
+            --text-color: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
+            font-family: "Microsoft JhengHei", sans-serif;
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        h1 { margin-bottom: 1rem; text-shadow: 0 0 10px var(--secondary-color); }
+
+        /* 水晶球區域 */
+        #canvas-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 1.5rem;
+        }
+
+        canvas {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        canvas:active { transform: scale(0.95); }
+
+        /* 按鈕樣式 */
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
+            margin-top: 1rem;
+        }
+
+        .btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        /* 結果顯示區 */
+        #result-card {
+            display: none;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            animation: fadeIn 0.8s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fortune-type { font-size: 1.5rem; font-weight: bold; color: #fab1a0; margin-bottom: 10px; }
+        .details { text-align: left; font-size: 0.95rem; line-height: 1.6; color: #dfe6e9; }
+        .quote { font-style: italic; margin-top: 15px; color: #55efc4; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="main-ui">
+        <h1>🔮 命運觀測站</h1>
+        <p>點擊水晶球或下方按鈕，窺探你的未來...</p>
+        
+        <div id="canvas-container">
+            <canvas id="crystalBall" width="200" height="200"></canvas>
+        </div>
+
+        <button class="btn" onclick="drawFortune()">開始占卜</button>
+    </div>
+
+    <div id="result-card">
+        <div id="fortune-emoji" style="font-size: 3rem;">✨</div>
+        <div class="fortune-type" id="res-title">運勢名稱</div>
+        <div class="details" id="res-desc"></div>
+        <div class="quote" id="res-quote"></div>
+        <button class="btn" onclick="reset()">再占一次</button>
+    </div>
+</div>
+
+<script>
+    // --- 1. 占卜結果資料庫 (方便自行修改) ---
+    const fortuneData = [
+        {
+            title: "【大吉】 極光降臨",
+            emoji: "🌟",
+            desc: "工作：靈感爆發，難題迎刃而解。<br>學業：考運極佳，看過的內容都會考。<br>愛情：單身者有高品質邂逅；有伴者甜蜜升溫。<br>金錢：偏財運強，可能會有意外的小驚喜。",
+            quote: "今天你就是世界的主角，勇敢往前衝吧！"
+        },
+        {
+            title: "【吉】 暖陽和煦",
+            emoji: "☀️",
+            desc: "工作：進度穩定，深得同事信任。<br>學業：專注力提升，適合攻略困難科目。<br>愛情：互動自然，是個約會的好日子。<br>金錢：正財穩定，適合做理財規劃。",
+            quote: "平穩就是最好的祝福，保持微笑！"
+        },
+        {
+            title: "【中吉】 雲開見日",
+            emoji: "⛅",
+            desc: "工作：先前困擾的事將出現轉機。<br>學業：只要肯複習，成績就會有明顯回饋。<br>愛情：誤會冰釋，關係迎來新的起點。<br>金錢：不宜大筆消費，但日常支出很充裕。",
+            quote: "所有的等待，都是為了更好的遇見。"
+        },
+        {
+            title: "【小吉】 微風拂面",
+            emoji: "🍃",
+            desc: "工作：瑣事較多但能順利完成。<br>學業：適合整理筆記，溫故知新。<br>愛情：細水長流，適合平淡的陪伴。<br>金錢：稍微有點購物慾，適度消費有助紓壓。",
+            quote: "小小的幸福堆疊起來，就是大大的幸運。"
+        },
+        {
+            title: "【平】 靜水流深",
+            emoji: "🌊",
+            desc: "工作：按部就班，不求有功但求無過。<br>學業：效率一般，建議多休息再出發。<br>愛情：生活重心在自己身上，感情處於靜止期。<br>金錢：守住荷包，今天不適合冒險投資。",
+            quote: "休息是為了走更長遠的路，今天就放輕鬆吧。"
+        },
+        {
+            title: "【末吉】 待發之箭",
+            emoji: "🏹",
+            desc: "工作：目前雖然辛苦，但正在累積實力。<br>學業：基礎尚不穩固，建議回頭補強。<br>愛情：暫時沒有進展，給彼此一點空間。<br>金錢：注意日常小超支，積少成多。",
+            quote: "黎明前總是最黑暗的，堅持下去！"
+        },
+        {
+            title: "【冒險】 勇者之路",
+            emoji: "⚔️",
+            desc: "工作：會有新的挑戰，成功後收穫巨大。<br>學業：適合接觸跨領域的新知識。<br>愛情：勇敢表白或溝通，會有意想不到的結果。<br>金錢：高風險高回報，請謹慎評估。",
+            quote: "冒險不代表盲目，你的勇氣是最好的武器。"
+        },
+        {
+            title: "【豐收】 果實纍纍",
+            emoji: "🍎",
+            desc: "工作：過去的努力終於開花結果。<br>學業：付出的心血轉化為優異的成績。<br>愛情：關係到達新階段，適合討論未來。<br>金錢：有金錢回流或收到禮物。",
+            quote: "好好犒賞自己，這是你應得的！"
+        },
+        {
+            title: "【反思】 沉思之塔",
+            emoji: "🕯️",
+            desc: "工作：需要停下腳步檢視流程是否正確。<br>學業：盲目讀書效果不彰，試著找對方法。<br>愛情：思考自己真正的需求，別被情緒牽著走。<br>金錢：檢視開支，可能有不必要的自動扣款。",
+            quote: "慢下來，是為了看清楚前方的路。"
+        },
+        {
+            title: "【奇遇】 貓咪報恩",
+            emoji: "🐱",
+            desc: "工作：會有貴人相助，特別是來自異性的建議。<br>學業：組隊討論會比獨自鑽研更有收穫。<br>愛情：在不經意的轉角遇到心動對象。<br>金錢：運氣不錯，路上可能撿到錢（或發票中獎）。",
+            quote: "保持好奇心，驚喜就在下一個路口！"
+        }
+    ];
+
+    // --- 2. 水晶球 Canvas 繪圖 ---
+    const canvas = document.getElementById('crystalBall');
+    const ctx = canvas.getContext('2d');
+    let angle = 0;
+
+    function drawBall() {
+        ctx.clearRect(0, 0, 200, 200);
+        
+        // 畫球座
+        ctx.fillStyle = "#2d3436";
+        ctx.beginPath();
+        ctx.moveTo(60, 180);
+        ctx.lineTo(140, 180);
+        ctx.lineTo(160, 200);
+        ctx.lineTo(40, 200);
+        ctx.fill();
+
+        // 畫圓球 (漸層)
+        const gradient = ctx.createRadialGradient(100, 100, 10, 100, 100, 80);
+        gradient.addColorStop(0, '#a29bfe');
+        gradient.addColorStop(1, '#6c5ce7');
+        
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#a29bfe";
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(100, 100, 80, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 內部流光效果
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(100, 100, 60, angle, angle + Math.PI * 0.5);
+        ctx.stroke();
+
+        // 高光
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.beginPath();
+        ctx.arc(70, 70, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        angle += 0.02;
+        requestAnimationFrame(drawBall);
+    }
+    drawBall();
+
+    // --- 3. 邏輯處理 ---
+    function drawFortune() {
+        // 隨機選一個結果
+        const randomIndex = Math.floor(Math.random() * fortuneData.length);
+        const result = fortuneData[randomIndex];
+
+        // 顯示結果與切換介面
+        document.getElementById('main-ui').classList.add('hidden');
+        const card = document.getElementById('result-card');
+        card.style.display = 'block';
+
+        document.getElementById('fortune-emoji').innerText = result.emoji;
+        document.getElementById('res-title').innerText = result.title;
+        document.getElementById('res-desc').innerHTML = result.desc;
+        document.getElementById('res-quote').innerText = `「${result.quote}」`;
+    }
+
+    function reset() {
+        document.getElementById('result-card').style.display = 'none';
+        document.getElementById('main-ui').classList.remove('hidden');
+    }
+
+    // 點擊 Canvas 也能觸發
+    canvas.addEventListener('click', drawFortune);
+</script>
+
+</body>
+</html>
